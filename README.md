@@ -1,4 +1,4 @@
-# doh-relay &middot; [![License](https://img.shields.io/hexpm/l/plug?logo=Github&style=flat)](LICENSE) [![Go Report Card](https://goreportcard.com/badge/github.com/tinkernels/sharp)](https://goreportcard.com/report/github.com/tinkernels/sharp)
+# sharp &middot; [![License](https://img.shields.io/hexpm/l/plug?logo=Github&style=flat)](LICENSE) [![Go Report Card](https://goreportcard.com/badge/github.com/tinkernels/sharp)](https://goreportcard.com/report/github.com/tinkernels/sharp)
 sharp is a reverse proxy with tls terminator
 
 - Multiple source addresses to multiple upstreams
