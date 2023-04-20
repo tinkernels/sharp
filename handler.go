@@ -87,7 +87,7 @@ func NewGinHandler(conf *ServiceConfigModel) (h *GinHandler) {
 							LocalAddr: addr4Dialer_,
 						}
 					}
-
+					log.Infof("dailing: %s %s <-> %s", network, srcIP_.String(), addr)
 					con, err = dialer_.DialContext(ctx, network, addr)
 					return
 				},
