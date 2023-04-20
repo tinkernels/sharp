@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type GinHandler struct {
@@ -51,6 +52,7 @@ func (h *GinHandler) initTransportGetter() func() (tr *http.Transport) {
 					}
 					dialer_ = &net.Dialer{
 						LocalAddr: addr4Dialer_,
+						Timeout:   3 * time.Second, // 3 seconds to connect
 					}
 				} else if network == "udp" {
 					addr4Dialer_ := &net.UDPAddr{
