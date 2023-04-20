@@ -36,6 +36,7 @@ func (h *GinHandler) initTransportGetter() func() (tr *http.Transport) {
 	}
 	var trs_ []*http.Transport
 	for _, ip := range ips_ {
+		ip_ := ip
 		tr_ := &http.Transport{
 			Proxy: nil,
 			DialContext: func(ctx context.Context, network string, addr string) (
@@ -44,7 +45,7 @@ func (h *GinHandler) initTransportGetter() func() (tr *http.Transport) {
 				var dialer_ *net.Dialer
 				if network == "tcp" {
 					addr4Dialer_ := &net.TCPAddr{
-						IP:   *ip,
+						IP:   *ip_,
 						Port: 0,
 						Zone: "",
 					}
@@ -53,7 +54,7 @@ func (h *GinHandler) initTransportGetter() func() (tr *http.Transport) {
 					}
 				} else if network == "udp" {
 					addr4Dialer_ := &net.UDPAddr{
-						IP:   *ip,
+						IP:   *ip_,
 						Port: 0,
 						Zone: "",
 					}
@@ -61,7 +62,7 @@ func (h *GinHandler) initTransportGetter() func() (tr *http.Transport) {
 						LocalAddr: addr4Dialer_,
 					}
 				}
-				log.Infof("dialing: %s %s <-> %s", network, ip.String(), addr)
+				log.Debugf("dialing: %s %s <-> %s", network, ip_.String(), addr)
 				con, err = dialer_.DialContext(ctx, network, addr)
 				return
 			},
