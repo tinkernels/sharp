@@ -9,13 +9,12 @@ import (
 )
 
 type GinHandler struct {
-	httpClient     *http.Client
-	svcConf        *ServiceConfigModel
-	srcIPGetter    func() *net.IP
-	upstreamGetter func() *url.URL
+	svcConf         *ServiceConfigModel
+	transportGetter func() *http.Transport
+	upstreamGetter  func() *url.URL
 }
 
-func (h *GinHandler) initSrcIPGetter() func() (ipNet *net.IP) {
+func (h *GinHandler) initTransportGetter() func() (tr *http.Transport) {
 	var ips_ []*net.IP
 	for _, ipStr := range h.svcConf.SourceAddresses {
 		ip_, _, err := net.ParseCIDR(ipStr)
@@ -29,10 +28,48 @@ func (h *GinHandler) initSrcIPGetter() func() (ipNet *net.IP) {
 		ips_ = append(ips_, &ip_)
 	}
 	if len(ips_) == 0 {
-		return nil
+		return func() *http.Transport {
+			return &http.Transport{
+				Proxy: nil,
+			}
+		}
 	}
-	h.srcIPGetter = IterWithControlBit(ips_, true)
-	return h.srcIPGetter
+	var trs_ []*http.Transport
+	for _, ip := range ips_ {
+		tr_ := &http.Transport{
+			Proxy: nil,
+			DialContext: func(ctx context.Context, network string, addr string) (
+				con net.Conn, err error) {
+
+				var dialer_ *net.Dialer
+				if network == "tcp" {
+					addr4Dialer_ := &net.TCPAddr{
+						IP:   *ip,
+						Port: 0,
+						Zone: "",
+					}
+					dialer_ = &net.Dialer{
+						LocalAddr: addr4Dialer_,
+					}
+				} else if network == "udp" {
+					addr4Dialer_ := &net.UDPAddr{
+						IP:   *ip,
+						Port: 0,
+						Zone: "",
+					}
+					dialer_ = &net.Dialer{
+						LocalAddr: addr4Dialer_,
+					}
+				}
+				log.Infof("dialing: %s %s <-> %s", network, ip.String(), addr)
+				con, err = dialer_.DialContext(ctx, network, addr)
+				return
+			},
+		}
+		trs_ = append(trs_, tr_)
+	}
+	h.transportGetter = IterWithControlBit(trs_, true)
+	return h.transportGetter
 }
 
 func (h *GinHandler) initUpstreamGetter() func() (upstream *url.URL) {
@@ -56,44 +93,7 @@ func NewGinHandler(conf *ServiceConfigModel) (h *GinHandler) {
 	h = &GinHandler{
 		svcConf: conf,
 	}
-	h.initSrcIPGetter()
-	if h.srcIPGetter == nil {
-		h.httpClient = &http.Client{}
-	} else {
-		h.httpClient = &http.Client{
-			Transport: &http.Transport{
-				Proxy: nil,
-				DialContext: func(ctx context.Context, network string, addr string) (
-					con net.Conn, err error) {
-
-					srcIP_ := h.srcIPGetter()
-					var dialer_ *net.Dialer
-					if network == "tcp" {
-						addr4Dialer_ := &net.TCPAddr{
-							IP:   *srcIP_,
-							Port: 0,
-							Zone: "",
-						}
-						dialer_ = &net.Dialer{
-							LocalAddr: addr4Dialer_,
-						}
-					} else if network == "udp" {
-						addr4Dialer_ := &net.UDPAddr{
-							IP:   *srcIP_,
-							Port: 0,
-							Zone: "",
-						}
-						dialer_ = &net.Dialer{
-							LocalAddr: addr4Dialer_,
-						}
-					}
-					log.Infof("dialing: %s %s <-> %s", network, srcIP_.String(), addr)
-					con, err = dialer_.DialContext(ctx, network, addr)
-					return
-				},
-			},
-		}
-	}
+	h.initTransportGetter()
 	h.initUpstreamGetter()
 	return
 }
@@ -121,7 +121,10 @@ func (h *GinHandler) HandleFun(c *gin.Context) {
 	newReq_.Header.Del("X-Forwarded-Ssl")
 	newReq_.Header.Del("X-Forwarded-Uri")
 	newReq_.Header.Del("X-Forwarded-Scheme")
-	rsp_, err := h.httpClient.Do(newReq_)
+	cli_ := &http.Client{
+		Transport: h.transportGetter(),
+	}
+	rsp_, err := cli_.Do(newReq_)
 	defer func() {
 		if rsp_ != nil {
 			_ = rsp_.Body.Close()
