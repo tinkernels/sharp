@@ -1,0 +1,15 @@
+- listen: ":8081"
+  upstream_endpoints:
+    - "https://9.9.9.9"
+    - "https://149.112.112.112"
+  source_addresses:
+    - "1.2.3.4"
+    - "5.6.7.8"
+
+- listen: ":8082"
+  upstream_endpoints:
+    - "https://2620:fe::11"
+    - "https://2620:fe::fe:11"
+  source_addresses:
+    - "1:2:3::4"
+    - "5:6:7::8"
