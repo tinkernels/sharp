@@ -39,7 +39,8 @@ func (h *GinHandler) initTransportGetter() func() (tr *http.Transport) {
 	for _, ip := range ips_ {
 		ip_ := ip
 		tr_ := &http.Transport{
-			Proxy: nil,
+			Proxy:           nil,
+			IdleConnTimeout: 5 * time.Minute, // 5 minutes to idle before timeout
 			DialContext: func(ctx context.Context, network string, addr string) (
 				con net.Conn, err error) {
 
